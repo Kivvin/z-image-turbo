@@ -309,7 +309,7 @@ Generate an image from a text prompt.
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `prompt` | string | ✅ | - | Text description of the image |
-| `width` | integer | ❌ | 1024 | Width in pixels (64-2048, divisible by 16) |
+| `width` | integer | ❌ | 512 | Width in pixels (64-2048, divisible by 16) |
 | `height` | integer | ❌ | 512 | Height in pixels (64-2048, divisible by 16) |
 | `num_inference_steps` | integer | ❌ | 5 | Denoising steps (1-50) |
 | `guidance_scale` | float | ❌ | 0.0 | CFG scale (0.0-20.0) |
