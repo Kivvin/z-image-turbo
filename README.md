@@ -113,6 +113,27 @@ Edit `backend/mcp_config.json` to set default transport mode and port:
 | **`update_model_config`** | Modify model settings dynamically | `cache_dir`, `cpu_offload` |
 | **Resource: `image://examples`** | Access curated example prompts and tips | None |
 
+### ⚙️ Production Configuration
+
+Edit `backend/mcp_config.json` to customize server behavior:
+
+```json
+{
+  "transport": "stdio",
+  "eager_load": false,
+  "model_ttl_minutes": 0,
+  "max_concurrent_requests": 1,
+  "log_level": "INFO"
+}
+```
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `eager_load` | Load model at startup (or use `--eager-load` flag) | `false` |
+| `model_ttl_minutes` | Auto-unload after N minutes idle (0 = never) | `0` |
+| `max_concurrent_requests` | Limit parallel generation (prevents GPU OOM) | `1` |
+| `log_level` | Logging verbosity (DEBUG/INFO/WARNING/ERROR) | `"INFO"` |
+
 ### Usage Example
 
 Once connected to Claude Desktop or another MCP client:
@@ -128,7 +149,7 @@ Claude: [Uses generate_image tool]
   "num_inference_steps": 8
 }
 
-[Returns base64-encoded image]
+[Returns rendered image]
 ```
 
 ### Transport Modes Comparison
@@ -136,9 +157,40 @@ Claude: [Uses generate_image tool]
 | Feature | Stdio Mode | HTTP/SSE Mode |
 |---------|-----------|---------------|
 | **Use Case** | Local desktop integration | Web clients, remote access |
-| **Best For** | Claude Desktop, MCP Inspector | Production APIs, multi-user |
+| **Best For** | Claude Desktop, MCP Inspector, LM Studio | Production APIs, multi-user |
 | **Network** | Local only | Network accessible |
 | **Setup** | Simpler | Requires port configuration |
+
+### LM Studio Integration
+
+Add to your LM Studio MCP config file:
+
+```json
+{
+  "mcpServers": {
+    "z-image-turbo": {
+      "command": "C:/path/to/z-image-turbo/venv/Scripts/python.exe",
+      "args": [
+        "C:/path/to/z-image-turbo/backend/mcp_server.py",
+        "--transport",
+        "stdio",
+        "--eager-load"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "timeout": 300000
+    }
+  }
+}
+```
+
+**Important**: 
+- Replace `C:/path/to/z-image-turbo` with your actual installation path
+- Use forward slashes `/` even on Windows
+- Point to the **venv Python executable** (not system Python!)
+- `--eager-load` loads the model at startup (avoids timeouts)
+- `timeout: 300000` (5 minutes in ms) for model loading + generation
 
 ### Claude Desktop Integration
 
@@ -148,14 +200,26 @@ Add to your Claude Desktop config file (`~/Library/Application Support/Claude/cl
 {
   "mcpServers": {
     "z-image-turbo": {
-      "command": "python",
-      "args": ["/absolute/path/to/z-image-turbo/backend/mcp_server.py", "--transport", "stdio"]
+      "command": "C:/path/to/z-image-turbo/venv/Scripts/python.exe",
+      "args": [
+        "C:/path/to/z-image-turbo/backend/mcp_server.py",
+        "--transport",
+        "stdio",
+        "--eager-load"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "timeout": 300000
     }
   }
 }
 ```
 
-**Important**: Replace `/absolute/path/to/z-image-turbo` with your actual installation path.
+**⚠️ Critical**: 
+- Use the **venv Python path**, not `"python"` (system Python won't have dependencies!)
+- `--eager-load` loads the model at startup to avoid timeout issues
+- `timeout: 300000` (5 minutes) ensures enough time for model loading
 
 After restarting Claude Desktop, you can ask Claude to generate images and it will use the MCP server automatically!
 
@@ -168,7 +232,7 @@ npx @modelcontextprotocol/inspector python backend/mcp_server.py --transport std
 
 This opens a web interface where you can test all available tools and inspect requests/responses.
 
-📖 **Full MCP Documentation:** See [`backend/MCP_README.md`](backend/MCP_README.md) for detailed setup, Python client examples, troubleshooting, and complete API reference.
+📖 **Full MCP Documentation:** See [`MCP_README.md`](MCP_README.md) for detailed setup, troubleshooting, and complete deployment guide.
 
 ---
 

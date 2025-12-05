@@ -1,18 +1,26 @@
 """
 MCP Server for Z-Image-Turbo
 Provides tools for AI image generation using the Z-Image-Turbo model.
+
+Production-ready features:
+- Configurable eager/lazy model loading
+- Model TTL (auto-unload after inactivity)
+- Concurrent request limiting
+- Configurable logging
 """
 
 import json
 import os
 import sys
 import base64
+import time
+import threading
 from io import BytesIO
-from typing import Optional, Literal
+from typing import Optional
 import asyncio
 import logging
 
-# Configure logging to stderr to avoid corrupting stdio communication
+# Initial logging setup (will be reconfigured based on config)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -48,54 +56,145 @@ def load_config():
         }
 
 
-# Load MCP server configuration
 def load_mcp_config():
     """Load MCP server configuration"""
     config_path = os.path.join(os.path.dirname(__file__), "mcp_config.json")
+    defaults = {
+        "transport": "stdio",
+        "host": "0.0.0.0",
+        "port": 8001,
+        "eager_load": False,
+        "model_ttl_minutes": 0,
+        "max_concurrent_requests": 1,
+        "log_level": "INFO"
+    }
     try:
         with open(config_path, "r") as f:
-            return json.load(f)
+            loaded = json.load(f)
+            # Merge with defaults (loaded values take precedence)
+            return {**defaults, **loaded}
     except FileNotFoundError:
         logger.warning(f"MCP config file not found at {config_path}, using defaults")
-        return {
-            "transport": "stdio",
-            "host": "0.0.0.0",
-            "port": 8001
-        }
+        return defaults
 
 
-# Global variables for model caching
+# Global state
 pipe = None
 config = load_config()
+mcp_config = load_mcp_config()
+last_used_time = None
+model_lock = threading.Lock()
+request_semaphore = None  # Will be initialized in main()
+
+def _load_pipeline_internal():
+    """Internal function to load the pipeline (must be called with lock held)"""
+    global pipe, last_used_time
+    
+    logger.info("Loading Z-Image-Turbo model... (this may take 30-60 seconds on first run)")
+    model_id = config.get("model_id", "Tongyi-MAI/Z-Image-Turbo")
+    cache_dir = config.get("cache_dir", "./models")
+    cpu_offload = config.get("cpu_offload", False)
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dtype = torch.bfloat16 if device == "cuda" else torch.float32
+
+    new_pipe = DiffusionPipeline.from_pretrained(
+        model_id,
+        torch_dtype=dtype,
+        cache_dir=cache_dir
+    )
+
+    if cpu_offload and device == "cuda":
+        logger.info("Enabling CPU offload for memory optimization")
+        new_pipe.enable_sequential_cpu_offload()
+    else:
+        new_pipe = new_pipe.to(device)
+
+    # Log GPU memory usage if available
+    if device == "cuda":
+        try:
+            memory_gb = torch.cuda.memory_allocated() / 1024**3
+            logger.info(f"Model loaded on {device} (GPU memory: {memory_gb:.2f} GB)")
+        except Exception:
+            logger.info(f"Model loaded successfully on {device}")
+    else:
+        logger.info(f"Model loaded successfully on {device}")
+
+    return new_pipe
+
+
+def load_pipeline():
+    """Load the diffusion pipeline into memory (thread-safe)"""
+    global pipe, last_used_time
+    
+    with model_lock:
+        if pipe is not None:
+            last_used_time = time.time()
+            return pipe
+        
+        pipe = _load_pipeline_internal()
+        last_used_time = time.time()
+        return pipe
+
+
+def unload_pipeline():
+    """Unload the model from memory to free resources"""
+    global pipe, last_used_time
+    
+    with model_lock:
+        if pipe is not None:
+            logger.info("Unloading model to free memory...")
+            del pipe
+            pipe = None
+            last_used_time = None
+            
+            # Clear CUDA cache if available
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logger.info("GPU memory cache cleared")
+            
+            logger.info("Model unloaded successfully")
 
 
 def get_pipeline():
-    """Lazy load and cache the diffusion pipeline"""
-    global pipe
-    if pipe is None:
-        logger.info("Loading Z-Image-Turbo model...")
-        model_id = config.get("model_id", "Tongyi-MAI/Z-Image-Turbo")
-        cache_dir = config.get("cache_dir", "./models")
-        cpu_offload = config.get("cpu_offload", False)
+    """Get the pipeline, loading it if necessary (supports lazy loading)"""
+    global pipe, last_used_time
+    
+    with model_lock:
+        if pipe is None:
+            logger.info("Lazy loading model on first request...")
+            pipe = _load_pipeline_internal()
+        
+        last_used_time = time.time()
+        return pipe
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        dtype = torch.bfloat16 if device == "cuda" else torch.float32
 
-        pipe = DiffusionPipeline.from_pretrained(
-            model_id,
-            torch_dtype=dtype,
-            cache_dir=cache_dir
-        )
 
-        if cpu_offload and device == "cuda":
-            logger.info("Enabling CPU offload for memory optimization")
-            pipe.enable_sequential_cpu_offload()
-        else:
-            pipe = pipe.to(device)
-
-        logger.info(f"Model loaded successfully on {device}")
-
-    return pipe
+def start_ttl_monitor():
+    """Start background thread to monitor model TTL and unload when idle"""
+    ttl_minutes = mcp_config.get("model_ttl_minutes", 0)
+    
+    if ttl_minutes <= 0:
+        logger.debug("Model TTL disabled (model will stay loaded indefinitely)")
+        return
+    
+    ttl_seconds = ttl_minutes * 60
+    logger.info(f"Model TTL enabled: will unload after {ttl_minutes} minutes of inactivity")
+    
+    def monitor():
+        global pipe, last_used_time
+        while True:
+            time.sleep(60)  # Check every minute
+            
+            with model_lock:
+                if pipe is not None and last_used_time is not None:
+                    idle_time = time.time() - last_used_time
+                    if idle_time >= ttl_seconds:
+                        logger.info(f"Model idle for {idle_time/60:.1f} minutes, unloading...")
+                        unload_pipeline()
+    
+    thread = threading.Thread(target=monitor, daemon=True)
+    thread.start()
 
 
 # Create FastMCP server
@@ -105,9 +204,9 @@ mcp = FastMCP("z-image-turbo")
 @mcp.tool()
 async def generate_image(
     prompt: str,
-    width: int = 1024,
-    height: int = 1024,
-    num_inference_steps: int = 8,
+    width: int = 512,
+    height: int = 512,
+    num_inference_steps: int = 5,
     guidance_scale: float = 0.0,
     seed: Optional[int] = None
 ) -> ImageContent:
@@ -116,8 +215,8 @@ async def generate_image(
 
     Args:
         prompt: Text description of the image to generate
-        width: Image width in pixels (default: 1024)
-        height: Image height in pixels (default: 1024)
+        width: Image width in pixels (default: 1024, must be divisible by 16)
+        height: Image height in pixels (default: 1024, must be divisible by 16)
         num_inference_steps: Number of denoising steps (default: 8, range: 1-50)
         guidance_scale: Classifier-free guidance scale (default: 0.0, range: 0.0-20.0)
         seed: Random seed for reproducibility (optional)
@@ -125,10 +224,41 @@ async def generate_image(
     Returns:
         Generated image in MCP ImageContent format
     """
+    global request_semaphore
+    
     logger.info(f"Generating image with prompt: '{prompt}'")
 
+    # Input validation
+    if not prompt or not prompt.strip():
+        raise ValueError("Prompt cannot be empty")
+    
+    if width % 16 != 0 or height % 16 != 0:
+        raise ValueError(f"Width ({width}) and height ({height}) must be divisible by 16")
+    
+    if width < 64 or height < 64:
+        raise ValueError(f"Minimum dimension is 64 pixels (got {width}x{height})")
+    
+    if width > 2048 or height > 2048:
+        raise ValueError(f"Maximum dimension is 2048 pixels (got {width}x{height})")
+    
+    if num_inference_steps < 1 or num_inference_steps > 50:
+        raise ValueError(f"num_inference_steps must be between 1-50 (got {num_inference_steps})")
+    
+    if guidance_scale < 0.0 or guidance_scale > 20.0:
+        raise ValueError(f"guidance_scale must be between 0.0-20.0 (got {guidance_scale})")
+
+    # Use semaphore to limit concurrent requests (prevents GPU OOM)
+    if request_semaphore is not None:
+        async with request_semaphore:
+            return await _generate_image_internal(prompt, width, height, num_inference_steps, guidance_scale, seed)
+    else:
+        return await _generate_image_internal(prompt, width, height, num_inference_steps, guidance_scale, seed)
+
+
+async def _generate_image_internal(prompt, width, height, num_inference_steps, guidance_scale, seed):
+    """Internal image generation logic"""
     try:
-        # Get the pipeline
+        # Get the pipeline (will lazy load if needed)
         pipeline = get_pipeline()
 
         # Set up generator with seed if provided
@@ -177,25 +307,45 @@ async def get_model_info() -> dict:
     Get information about the currently loaded Z-Image-Turbo model.
 
     Returns:
-        Dictionary containing model configuration and status
+        Dictionary containing model configuration, status, and system info
     """
     global pipe, config
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     is_loaded = pipe is not None
-
-    return {
+    
+    result = {
         "model_id": config.get("model_id", "Tongyi-MAI/Z-Image-Turbo"),
         "cache_dir": config.get("cache_dir", "./models"),
         "cpu_offload": config.get("cpu_offload", False),
         "device": device,
         "is_loaded": is_loaded,
         "cuda_available": torch.cuda.is_available(),
-        "default_width": 1024,
-        "default_height": 1024,
-        "default_steps": 8,
-        "default_guidance_scale": 0.0
+        "default_settings": {
+            "width": 1024,
+            "height": 1024,
+            "num_inference_steps": 8,
+            "guidance_scale": 0.0
+        },
+        "limits": {
+            "min_dimension": 64,
+            "max_dimension": 2048,
+            "dimension_divisible_by": 16,
+            "max_inference_steps": 50
+        }
     }
+    
+    # Add GPU info if available
+    if torch.cuda.is_available():
+        try:
+            result["gpu_name"] = torch.cuda.get_device_name(0)
+            result["gpu_memory_total_gb"] = round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2)
+            if is_loaded:
+                result["gpu_memory_allocated_gb"] = round(torch.cuda.memory_allocated() / 1024**3, 2)
+        except Exception:
+            pass
+    
+    return result
 
 
 @mcp.tool()
@@ -276,6 +426,8 @@ async def get_example_prompts() -> str:
 
 def main():
     """Main entry point for the MCP server"""
+    global request_semaphore, mcp_config
+    
     import argparse
 
     parser = argparse.ArgumentParser(description="Z-Image-Turbo MCP Server")
@@ -288,7 +440,6 @@ def main():
     parser.add_argument(
         "--host",
         type=str,
-        default="0.0.0.0",
         help="Host address for HTTP transport (default: 0.0.0.0)"
     )
     parser.add_argument(
@@ -296,15 +447,64 @@ def main():
         type=int,
         help="Port for HTTP transport (default: 8001)"
     )
+    parser.add_argument(
+        "--eager-load",
+        action="store_true",
+        dest="eager_load",
+        help="Load model at startup (overrides config)"
+    )
+    parser.add_argument(
+        "--lazy-load",
+        action="store_true", 
+        dest="lazy_load",
+        help="Load model on first request (overrides config)"
+    )
 
     args = parser.parse_args()
 
-    # Load config and apply overrides
+    # Reload config (in case it was modified)
     mcp_config = load_mcp_config()
+    
+    # Configure logging level from config
+    log_level = mcp_config.get("log_level", "INFO").upper()
+    logging.getLogger().setLevel(getattr(logging, log_level, logging.INFO))
+    logger.info(f"Log level set to {log_level}")
 
+    # Apply command line overrides
     transport = args.transport or mcp_config.get("transport", "stdio")
     host = args.host or mcp_config.get("host", "0.0.0.0")
     port = args.port or mcp_config.get("port", 8001)
+    
+    # Determine eager loading setting (CLI overrides config)
+    if args.eager_load:
+        eager_load = True
+    elif args.lazy_load:
+        eager_load = False
+    else:
+        eager_load = mcp_config.get("eager_load", True)
+
+    # Initialize request semaphore for concurrency control
+    max_concurrent = mcp_config.get("max_concurrent_requests", 1)
+    request_semaphore = asyncio.Semaphore(max_concurrent)
+    logger.info(f"Max concurrent requests: {max_concurrent}")
+
+    # Start TTL monitor if configured
+    start_ttl_monitor()
+
+    # Eager load the model if configured
+    if eager_load:
+        logger.info("Eager loading model at startup...")
+        try:
+            load_pipeline()
+            logger.info("Model ready! Server is accepting requests.")
+        except Exception as e:
+            logger.error(f"Failed to load model: {e}")
+            logger.error("Server will attempt to load model on first request.")
+    else:
+        logger.info("Lazy loading enabled - model will load on first request")
+        ttl = mcp_config.get("model_ttl_minutes", 0)
+        if ttl > 0:
+            logger.info(f"Model TTL: {ttl} minutes")
 
     logger.info(f"Starting Z-Image-Turbo MCP server with transport: {transport}")
 
